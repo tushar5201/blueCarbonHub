@@ -1,0 +1,139 @@
+{
+  "users": [
+    {
+      "id": "user-1",
+      "email": "user@demo.com",
+      "password": "demo123",
+      "name": "Sarah Johnson",
+      "role": "user",
+      "credits": 450,
+      "avatar": "/woman-profile.png",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "ngo-1",
+      "email": "ngo@demo.com",
+      "password": "demo123",
+      "name": "Ocean Guardians",
+      "role": "ngo_manager",
+      "credits": 0,
+      "avatar": "/ocean-logo.png",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "admin-1",
+      "email": "admin@demo.com",
+      "password": "demo123",
+      "name": "Platform Admin",
+      "role": "admin",
+      "credits": 0,
+      "avatar": "/placeholder.svg",
+      "createdAt": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "project-1",
+      "name": "Great Barrier Reef Restoration",
+      "description": "Large-scale coral restoration project focusing on resilient coral species and community engagement.",
+      "location": "Great Barrier Reef, Australia",
+      "ecosystem": "coral_reef",
+      "status": "active",
+      "ngoId": "ngo-1",
+      "targetFunds": 50000,
+      "raisedFunds": 32500,
+      "targetHours": 500,
+      "pledgedHours": 320,
+      "startDate": "2024-01-01",
+      "endDate": "2024-12-31",
+      "images": ["/placeholder.svg?key=coral1", "/placeholder.svg?key=coral2"],
+      "coordinates": [145.7781, -16.2839],
+      "carbonSequestration": 8.5,
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "project-2",
+      "name": "Mangrove Reforestation Initiative",
+      "description": "Restoring mangrove forests along the Florida coast to protect against storm surge and sequester carbon.",
+      "location": "Everglades National Park, Florida",
+      "ecosystem": "mangrove",
+      "status": "active",
+      "ngoId": "ngo-1",
+      "targetFunds": 25000,
+      "raisedFunds": 18750,
+      "targetHours": 300,
+      "pledgedHours": 180,
+      "startDate": "2024-02-01",
+      "endDate": "2024-08-31",
+      "images": ["/mangrove-planting.png"],
+      "coordinates": [-80.9326, 25.3173],
+      "carbonSequestration": 12.3,
+      "createdAt": "2024-02-01T00:00:00Z"
+    }
+  ],
+  "actions": [
+    {
+      "id": "action-1",
+      "userId": "user-1",
+      "type": "Beach Cleanup",
+      "location": "Santa Monica Beach, CA",
+      "description": "Removed 15 lbs of plastic waste from the shoreline during morning cleanup event.",
+      "image": "/beach-cleanup-plastic-waste-removal.png",
+      "coordinates": [-118.4912, 34.0195],
+      "credits": 50,
+      "date": "2024-01-15T10:30:00Z",
+      "status": "approved"
+    },
+    {
+      "id": "action-2",
+      "userId": "user-1",
+      "type": "Mangrove Planting",
+      "location": "Everglades National Park, FL",
+      "description": "Planted 25 mangrove seedlings in designated restoration area with volunteer group.",
+      "image": "/mangrove-planting.png",
+      "coordinates": [-80.9326, 25.3173],
+      "credits": 75,
+      "date": "2024-01-12T14:15:00Z",
+      "status": "approved"
+    }
+  ],
+  "geoJsonData": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "properties": {
+          "name": "Great Barrier Reef Marine Park",
+          "ecosystem": "coral_reef",
+          "area_km2": 344400,
+          "carbon_stock_tons": 2500000,
+          "sequestration_rate": 8.5,
+          "status": "protected",
+          "threat_level": "high",
+          "projects": ["project-1"]
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[145.0, -24.0], [154.0, -24.0], [154.0, -10.0], [145.0, -10.0], [145.0, -24.0]]]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "name": "Everglades Mangrove System",
+          "ecosystem": "mangrove",
+          "area_km2": 6000,
+          "carbon_stock_tons": 180000,
+          "sequestration_rate": 12.3,
+          "status": "restoration",
+          "threat_level": "medium",
+          "projects": ["project-2"]
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[-81.5, 24.5], [-80.0, 24.5], [-80.0, 25.8], [-81.5, 25.8], [-81.5, 24.5]]]
+        }
+      }
+    ]
+  }
+}

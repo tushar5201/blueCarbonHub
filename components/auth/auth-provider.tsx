@@ -1,24 +1,24 @@
 "use client"
-
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabaseClient"
 
-export type UserRole = "user" | "ngo_manager" | "admin"
+export type UserType = "user" | "NGO" | "admin"
 
 export interface User {
   id: string
   email: string
   name: string
-  role: UserRole
-  credits: number
+  type: UserType
+  credits?: number
   avatar?: string
-  createdAt: string
+  created_at: string
 }
 
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string, name: string, role?: UserRole) => Promise<void>
+  register: (email: string, password: string, name: string, type?: UserType) => Promise<void>
   logout: () => void
   loading: boolean
   isAuthenticated: boolean
@@ -31,100 +31,164 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
+  // -------------------------------
+  // Load from localStorage on mount
+  // -------------------------------
   useEffect(() => {
-    // Check for existing session on mount
-    checkAuth()
-  }, [])
+    const init = async () => {
+      const token = localStorage.getItem("access_token")
+      const userData = localStorage.getItem("user")
 
-  const checkAuth = async () => {
-    try {
-      const token = localStorage.getItem("auth_token")
-      if (!token) {
-        setLoading(false)
-        return
+      if (token && userData) {
+        try {
+          const parsedUser: User = JSON.parse(userData)
+          setUser(parsedUser)
+
+          // Restore Supabase session
+          await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: localStorage.getItem("refresh_token") || "",
+          })
+
+          // Refresh profile from DB
+          const { data: profile, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", parsedUser.id)
+            .single()
+
+          if (!error && profile) {
+            const updatedUser: User = {
+              ...parsedUser,
+              name: profile.name,
+              type: profile.type,
+              credits: profile.credits,
+              avatar: profile.avatar,
+              created_at: profile.created_at,
+            }
+            localStorage.setItem("user", JSON.stringify(updatedUser))
+            setUser(updatedUser)
+          }
+        } catch (err) {
+          console.error("Error restoring user from storage:", err)
+          localStorage.clear()
+          setUser(null)
+        }
       }
-
-      const response = await fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      if (response.ok) {
-        const userData = await response.json()
-        setUser(userData)
-      } else {
-        localStorage.removeItem("auth_token")
-      }
-    } catch (error) {
-      console.error("Auth check failed:", error)
-      localStorage.removeItem("auth_token")
-    } finally {
       setLoading(false)
     }
-  }
 
+    init()
+  }, [])
+
+  // -------------------------------
+  // LOGIN
+  // -------------------------------
   const login = async (email: string, password: string) => {
-    console.log("[v0] Login function called with email:", email)
-
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
 
-      console.log("[v0] Login response status:", response.status)
-      console.log("[v0] Login response headers:", Object.fromEntries(response.headers.entries()))
+      const { user: supabaseUser, session } = data
+      if (!supabaseUser || !session) throw new Error("Invalid Supabase login response")
 
-      const contentType = response.headers.get("content-type")
-      console.log("[v0] Response content-type:", contentType)
+      // Store tokens
+      localStorage.setItem("access_token", session.access_token)
+      localStorage.setItem("refresh_token", session.refresh_token || "")
 
-      if (!contentType || !contentType.includes("application/json")) {
-        const textResponse = await response.text()
-        console.error("[v0] Non-JSON response received:", textResponse)
-        throw new Error("Server returned non-JSON response: " + textResponse.substring(0, 100))
+      // Fetch user profile from your table
+      const { data: profile, error: profileError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", supabaseUser.id)
+        .single()
+
+      if (profileError || !profile) {
+        throw new Error("User profile not found in DB. Did you create it in register()?")
       }
 
-      if (!response.ok) {
-        const error = await response.json()
-        console.error("[v0] Login failed with error:", error)
-        throw new Error(error.message || "Login failed")
+      // Format user data according to your User interface
+      const userData: User = {
+        id: supabaseUser.id,
+        email: supabaseUser.email || "",
+        name: profile.name,
+        type: profile.type,
+        credits: profile.credits,
+        avatar: profile.avatar,
+        created_at: profile.created_at,
       }
 
-      const responseData = await response.json()
-      console.log("[v0] Login successful, received data:", {
-        hasUser: !!responseData.user,
-        hasToken: !!responseData.token,
-        userEmail: responseData.user?.email,
-      })
-
-      const { user: userData, token } = responseData
-      localStorage.setItem("auth_token", token)
+      localStorage.setItem("user", JSON.stringify(userData))
       setUser(userData)
-    } catch (error) {
-      console.error("[v0] Login error caught:", error)
-      throw error
+    } catch (err) {
+      console.error("Login error:", err)
+      throw err
     }
   }
 
-  const register = async (email: string, password: string, name: string, role: UserRole = "user") => {
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, name, role }),
-    })
+  // -------------------------------
+  // REGISTER
+  // -------------------------------
+  const register = async (email: string, password: string, name: string, type: UserType = "user") => {
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      if (error) throw error
 
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || "Registration failed")
+      const { user: supabaseUser, session } = data
+      if (!supabaseUser) throw new Error("Supabase did not return a user after signUp")
+
+      // Create profile in custom table
+      const { data: profile, error: profileError } = await supabase
+        .from("users")
+        .insert([
+          {
+            id: supabaseUser.id,
+            email: supabaseUser.email,
+            name,
+            type,
+            credits: 0,
+            created_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single()
+
+      if (profileError) throw profileError
+
+      if (session) {
+        localStorage.setItem("access_token", session.access_token)
+        localStorage.setItem("refresh_token", session.refresh_token || "")
+
+        // Format user data according to your User interface
+        const userData: User = {
+          id: supabaseUser.id,
+          email: supabaseUser.email || "",
+          name: profile.name,
+          type: profile.type,
+          credits: profile.credits,
+          avatar: profile.avatar,
+          created_at: profile.created_at,
+        }
+
+        localStorage.setItem("user", JSON.stringify(userData))
+        setUser(userData)
+      }
+    } catch (err) {
+      console.error("Register error:", err)
+      throw err
     }
-
-    const { user: userData, token } = await response.json()
-    localStorage.setItem("auth_token", token)
-    setUser(userData)
   }
 
-  const logout = () => {
-    localStorage.removeItem("auth_token")
+  // -------------------------------
+  // LOGOUT
+  // -------------------------------
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error("Supabase logout failed:", err)
+    }
+    localStorage.clear()
     setUser(null)
     router.push("/")
   }
@@ -147,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
   return context

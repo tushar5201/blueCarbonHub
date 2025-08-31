@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Leaf, Eye, EyeOff } from "lucide-react"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -28,6 +29,41 @@ export default function RegisterPage() {
 
   const { register } = useAuth()
   const router = useRouter()
+
+  const handleRegister = async ({
+    email,
+    password,
+    name,
+    role,
+  }: {
+    email: string;
+    password: string;
+    name: string;
+    role: string;
+  }) => {
+    // Register with Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    // Store user in your users table
+    if (data.user) {
+      await supabase.from("users").insert([
+        {
+          id: data.user.id,
+          email: data.user.email,
+          name,
+          type: "NGO", // "NGO" or "user"
+        },
+      ]);
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,8 +82,13 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      await register(formData.email, formData.password, formData.name, formData.role)
-      router.push("/dashboard")
+      await handleRegister({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        role: "NGO",
+      });
+      router.push("/auth/login")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed")
     } finally {
@@ -98,7 +139,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="role">Account Type</Label>
               <Select
                 value={formData.role}
@@ -112,7 +153,7 @@ export default function RegisterPage() {
                   <SelectItem value="ngo_manager">NGO Manager</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

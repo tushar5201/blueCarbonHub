@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -108,7 +107,6 @@ export default function LoginPage() {
           <div className="mt-6 p-4 bg-muted rounded-lg">
             <p className="text-sm font-medium mb-2">Demo Accounts:</p>
             <div className="text-xs space-y-1 text-muted-foreground">
-              {/* <div>Admin: admin@demo.com / demo123</div> */}
               <div>NGO Manager: ngo@demo.com / demo123</div>
               <div>User: user@demo.com / demo123</div>
             </div>

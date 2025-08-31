@@ -12,6 +12,22 @@ import { AdminDashboard } from "./admin-dashboard"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useState } from "react"
 
+// Define the expected User type structure to match your database
+interface UserWithType {
+  id: string
+  email: string
+  name: string
+  type: string
+  credits?: number
+  avatar?: string
+  created_at: string
+}
+
+// Type guard function
+const isUserWithType = (user: any): user is UserWithType => {
+  return user && typeof user.type === 'string'
+}
+
 export function UserDashboard() {
   const { user, loading } = useAuth()
 
@@ -28,13 +44,35 @@ export function UserDashboard() {
     return <div className="flex items-center justify-center min-h-screen">Please log in</div>
   }
 
-  // Route to appropriate dashboard based on role
-  if (user.role === "ngo_manager") {
+  // Route to appropriate dashboard based on type
+  const userType = isUserWithType(user) ? user.type : 'user'
+  
+  if (userType === "NGO") {
     return <NGODashboard />
   }
 
-  if (user.role === "admin") {
+  if (userType === "admin") {
     return <AdminDashboard />
+  }
+
+  // Helper function to get user initials safely
+  const getUserInitials = (name?: string, email?: string) => {
+    if (name && name.trim()) {
+      const words = name.trim().split(' ')
+      if (words.length >= 2) {
+        return `${words[0].charAt(0)}${words[1].charAt(0)}`.toUpperCase()
+      }
+      return name.charAt(0).toUpperCase()
+    }
+    if (email) {
+      return email.charAt(0).toUpperCase()
+    }
+    return 'U'
+  }
+
+  // Helper function to get display name
+  const getDisplayName = () => {
+    return user.name || user.email || 'User'
   }
 
   // Mock data for user dashboard
@@ -43,7 +81,7 @@ export function UserDashboard() {
     carbonSaved: 2.4,
     hoursVolunteered: 18,
     projectsPledged: 3,
-    creditsEarned: user.credits,
+    creditsEarned: user.credits || 0,
     rank: 47,
     streak: 5,
   }
@@ -99,7 +137,7 @@ export function UserDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user.name}!</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome back, {getDisplayName()}!</h1>
           <p className="text-gray-600 mt-1">Track your impact and discover new ways to help blue carbon ecosystems</p>
         </div>
         <div className="flex items-center gap-4">
@@ -107,9 +145,12 @@ export function UserDashboard() {
             <Award className="w-4 h-4 mr-1" />
             Rank #{userStats.rank}
           </Badge>
+          <Badge variant="outline" className="text-blue-700 bg-blue-50">
+            Type: {userType}
+          </Badge>
           <Avatar className="h-12 w-12 cursor-pointer" onClick={() => setProfileOpen(true)}>
             <AvatarImage src={user.avatar || "/placeholder.svg"} />
-            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
           </Avatar>
         </div>
       </div>
@@ -297,22 +338,24 @@ export function UserDashboard() {
               <div className="flex flex-col md:flex-row items-center gap-8">
                 <Avatar className="h-24 w-24">
                   <AvatarImage src={user.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-2 w-full">
                   <div>
-                    <span className="font-semibold">Name:</span> {user.name}
+                    <span className="font-semibold">Name:</span> {user.name || 'Not provided'}
                   </div>
                   <div>
-                    <span className="font-semibold">Email:</span> {user.email}
+                    <span className="font-semibold">Email:</span> {user.email || 'Not provided'}
                   </div>
                   <div>
-                    <span className="font-semibold">Role:</span> {user.role}
+                    <span className="font-semibold">Type:</span> {userType}
                   </div>
                   <div>
-                    <span className="font-semibold">Credits:</span> {user.credits}
+                    <span className="font-semibold">Credits:</span> {user.credits || 0}
                   </div>
-                  {/* Add more fields as needed */}
+                  <div>
+                    <span className="font-semibold">Member since:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -346,7 +389,6 @@ export function UserDashboard() {
               <div>
                 <span className="font-semibold">Credits Earned:</span> {selectedActivity.credits}
               </div>
-              {/* Add more details if available */}
             </div>
           )}
           <DialogFooter>
@@ -371,22 +413,24 @@ export function UserDashboard() {
           <div className="flex flex-col items-center gap-6 py-4">
             <Avatar className="h-24 w-24">
               <AvatarImage src={user.avatar || "/placeholder.svg"} />
-              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
             </Avatar>
             <div className="space-y-2 w-full">
               <div>
-                <span className="font-semibold">Name:</span> {user.name}
+                <span className="font-semibold">Name:</span> {user.name || 'Not provided'}
               </div>
               <div>
-                <span className="font-semibold">Email:</span> {user.email}
+                <span className="font-semibold">Email:</span> {user.email || 'Not provided'}
               </div>
               <div>
-                <span className="font-semibold">Role:</span> {user.role}
+                <span className="font-semibold">Type:</span> {userType}
               </div>
               <div>
-                <span className="font-semibold">Credits:</span> {user.credits}
+                <span className="font-semibold">Credits:</span> {user.credits || 0}
               </div>
-              {/* Add more fields as needed */}
+              <div>
+                <span className="font-semibold">Member since:</span> {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+              </div>
             </div>
           </div>
           <DialogFooter>

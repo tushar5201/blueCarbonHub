@@ -87,11 +87,12 @@ export function NGODashboard() {
 
   // Add this state to hold projects from DB
   const [projects, setProjects] = useState<any[]>([]);
+  const [volunteers, setVolunteers] = useState<any[]>([]);
 
   // Mock data for NGO dashboard
   const ngoStats = {
     activeProjects: 4,
-    totalVolunteers: 3,
+    totalVolunteers: volunteers.length || 0,
     fundsRaised: 15420,
     hoursLogged: 892,
     impactScore: 8.7,
@@ -118,36 +119,87 @@ export function NGODashboard() {
     },
   ];
 
+  const [newVolunteerOpen, setNewVolunteerOpen] = useState(false);
+  const [newVolunteerForm, setNewVolunteerForm] = useState({
+    name: "",
+    email: "",
+    joined: "",
+    hours: 0,
+    role: "",
+    status: "active",
+  });
+
+  const handleOpenNewVolunteer = () => setNewVolunteerOpen(true);
+  const handleCloseNewVolunteer = () => {
+    setNewVolunteerOpen(false);
+    setNewVolunteerForm({
+      name: "",
+      email: "",
+      joined: "",
+      hours: 0,
+      role: "",
+      status: "active",
+    });
+  };
+  const handleNewVolunteerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewVolunteerForm({
+      ...newVolunteerForm,
+      [e.target.name]: e.target.value,
+    });
+  };
+  const handleSaveNewVolunteer = async () => {
+    const formToInsert = {
+      ...newVolunteerForm,
+      joined: newVolunteerForm.joined || null,
+      hours: Number(newVolunteerForm.hours) || 0,
+    };
+    const { error } = await supabase.from("volunteers").insert([formToInsert]);
+    if (error) {
+      toast({
+        title: "Error adding volunteer",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({
+      title: "Volunteer added!",
+      description: `Volunteer "${newVolunteerForm.name}" was added successfully.`,
+    });
+    await fetchVolunteers();
+    handleCloseNewVolunteer();
+  };
+
   // Mock volunteers data
-  const volunteers = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      email: "sarah.johnson@email.com",
-      joined: "2024-04-12",
-      hours: 56,
-      role: "Field Volunteer",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "David Lee",
-      email: "david.lee@email.com",
-      joined: "2024-03-28",
-      hours: 34,
-      role: "Coordinator",
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "Priya Singh",
-      email: "priya.singh@email.com",
-      joined: "2024-05-02",
-      hours: 12,
-      role: "Field Volunteer",
-      status: "inactive",
-    },
-  ];
+  // const volunteers = [
+  //   {
+  //     id: 1,
+  //     name: "Sarah Johnson",
+  //     email: "sarah.johnson@email.com",
+  //     joined: "2024-04-12",
+  //     hours: 56,
+  //     role: "Field Volunteer",
+  //     status: "active",
+  //   },
+  //   {
+  //     id: 2,
+  //     name: "David Lee",
+  //     email: "david.lee@email.com",
+  //     joined: "2024-03-28",
+  //     hours: 34,
+  //     role: "Coordinator",
+  //     status: "active",
+  //   },
+  //   {
+  //     id: 3,
+  //     name: "Priya Singh",
+  //     email: "priya.singh@email.com",
+  //     joined: "2024-05-02",
+  //     hours: 12,
+  //     role: "Field Volunteer",
+  //     status: "inactive",
+  //   },
+  // ];
 
   const analyticsData = {
     projectProgress: projects.map((p) => ({
@@ -221,6 +273,19 @@ export function NGODashboard() {
     handleCloseModal();
   };
 
+
+  const fetchVolunteers = async () => {
+    const { data, error } = await supabase
+      .from("volunteers")
+      .select("*")
+      .order("id", { ascending: false });
+    if (!error && data) setVolunteers(data);
+  };
+
+  useEffect(() => {
+    fetchVolunteers();
+  }, []);
+
   // Volunteer modal handlers
   const handleOpenVolunteerModal = (type: "view" | "edit", volunteer: any) => {
     setVolunteerModalType(type);
@@ -244,8 +309,26 @@ export function NGODashboard() {
       [e.target.name]: e.target.value,
     });
   };
-  const handleSaveVolunteerEdit = () => {
-    // Save logic here
+  const handleSaveVolunteerEdit = async () => {
+    if (!editVolunteerForm?.id) return;
+    const { id, ...updateData } = editVolunteerForm;
+    const { error } = await supabase
+      .from("volunteers")
+      .update(updateData)
+      .eq("id", id);
+    if (error) {
+      toast({
+        title: "Error updating volunteer",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({
+      title: "Volunteer updated!",
+      description: `Volunteer "${editVolunteerForm.name}" was updated successfully.`,
+    });
+    await fetchVolunteers();
     handleCloseVolunteerModal();
   };
 
@@ -520,56 +603,81 @@ export function NGODashboard() {
         <TabsContent value="volunteers" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Volunteer Management</CardTitle>
+              <CardTitle className="flex justify-between">
+                <span>Volunteer Management </span>
+                <Button
+                  // className="bg-blue-600 hover:bg-blue-700 mb-4"
+                  onClick={handleOpenNewVolunteer}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Volunteer
+                </Button></CardTitle>
               <CardDescription>
                 Track volunteer engagement and contributions
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {volunteers.map((volunteer) => (
                 <div
                   key={volunteer.id}
-                  className="p-4 border rounded-lg space-y-3 bg-white"
+                  className="relative flex flex-col justify-between p-6 border rounded-lg bg-white shadow-sm hover:shadow-lg transition-shadow duration-200 group"
                 >
-                  <div className="flex items-center justify-between">
+                  {/* Status Badge */}
+                  <div className="absolute top-4 right-4">
+                    <Badge
+                      className={
+                        volunteer.status === "active"
+                          ? "bg-emerald-100 text-emerald-700 flex items-center gap-1"
+                          : "bg-gray-100 text-gray-700 flex items-center gap-1"
+                      }
+                    >
+                      <span
+                        className="inline-block w-2 h-2 rounded-full"
+                        style={{
+                          backgroundColor:
+                            volunteer.status === "active" ? "#10b981" : "#9ca3af",
+                        }}
+                      />
+                      {volunteer.status}
+                    </Badge>
+                  </div>
+                  {/* Avatar/Initials */}
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-lg font-bold text-blue-700">
+                      {volunteer.name
+                        .split(" ")
+                        .map((n:any) => n[0])
+                        .join("")
+                        .toUpperCase()}
+                    </div>
                     <div>
-                      <h4 className="font-semibold">{volunteer.name}</h4>
-                      <div className="text-sm text-gray-600">
-                        {volunteer.role}
-                      </div>
+                      <h4 className="font-semibold text-lg">{volunteer.name}</h4>
+                      <div className="text-sm text-gray-600">{volunteer.role}</div>
                       <div className="text-xs text-muted-foreground">
                         {volunteer.email}
                       </div>
                     </div>
-                    <Badge
-                      className={
-                        volunteer.status === "active"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-gray-100 text-gray-700"
-                      }
-                    >
-                      {volunteer.status}
-                    </Badge>
                   </div>
-                  <div className="flex gap-4 text-sm">
+                  {/* Info */}
+                  <div className="flex gap-6 text-sm mt-2">
                     <div>
                       <Label className="text-muted-foreground">Joined</Label>
                       <div>
                         {new Date(volunteer.joined).toLocaleDateString()}
                       </div>
                     </div>
-                    <div>
+                    {/* <div>
                       <Label className="text-muted-foreground">Hours</Label>
                       <div>{volunteer.hours}</div>
-                    </div>
+                    </div> */}
                   </div>
-                  <div className="flex gap-2">
+                  {/* Buttons */}
+                  <div className="flex gap-2 mt-6">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        handleOpenVolunteerModal("view", volunteer)
-                      }
+                      onClick={() => handleOpenVolunteerModal("view", volunteer)}
+                      className="flex-1"
                     >
                       <Eye className="w-4 h-4 mr-1" />
                       View
@@ -577,9 +685,8 @@ export function NGODashboard() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        handleOpenVolunteerModal("edit", volunteer)
-                      }
+                      onClick={() => handleOpenVolunteerModal("edit", volunteer)}
+                      className="flex-1"
                     >
                       <Edit className="w-4 h-4 mr-1" />
                       Edit
@@ -591,6 +698,101 @@ export function NGODashboard() {
           </Card>
         </TabsContent>
 
+        <Dialog open={newVolunteerOpen} onOpenChange={handleCloseNewVolunteer}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Volunteer</DialogTitle>
+              <DialogDescription>
+                Fill in the details to add a new volunteer.
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              className="space-y-4"
+              onSubmit={e => {
+                e.preventDefault();
+                handleSaveNewVolunteer();
+              }}
+            >
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={newVolunteerForm.name}
+                  onChange={handleNewVolunteerChange}
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  value={newVolunteerForm.email}
+                  onChange={handleNewVolunteerChange}
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="role">Role</Label>
+                <Input
+                  id="role"
+                  name="role"
+                  value={newVolunteerForm.role}
+                  onChange={handleNewVolunteerChange}
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="joined">Joined</Label>
+                <Input
+                  id="joined"
+                  name="joined"
+                  type="date"
+                  value={newVolunteerForm.joined}
+                  onChange={handleNewVolunteerChange}
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="hours">Hours</Label>
+                <Input
+                  id="hours"
+                  name="hours"
+                  type="number"
+                  value={newVolunteerForm.hours}
+                  onChange={handleNewVolunteerChange}
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Input
+                  id="status"
+                  name="status"
+                  value={newVolunteerForm.status}
+                  onChange={handleNewVolunteerChange}
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit">
+                  Add Volunteer
+                </Button>
+                <Button variant="outline" onClick={handleCloseNewVolunteer} type="button">
+                  Cancel
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         <TabsContent value="analytics" className="space-y-6">
           <Card>
             <CardHeader>
@@ -599,11 +801,11 @@ export function NGODashboard() {
                 Detailed insights into your project performance
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Project Progress Bar Chart */}
               <div>
                 <h4 className="font-semibold mb-2">Project Progress</h4>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={analyticsData.projectProgress}>
                     <XAxis dataKey="name" />
                     <YAxis />
@@ -615,7 +817,7 @@ export function NGODashboard() {
               {/* Volunteer Hours Pie Chart */}
               <div>
                 <h4 className="font-semibold mb-2">Volunteer Hours</h4>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
                       data={analyticsData.volunteerHours}
@@ -623,7 +825,7 @@ export function NGODashboard() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={60}
+                      outerRadius={100}
                       label
                     >
                       {analyticsData.volunteerHours.map((entry, index) => (
@@ -638,25 +840,25 @@ export function NGODashboard() {
                 </ResponsiveContainer>
               </div>
               {/* Funds Raised Line Chart */}
-              <div>
-                <h4 className="font-semibold mb-2">Funds Raised Over Time</h4>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={analyticsData.fundsHistory}>
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="funds" stroke="#3b82f6" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+                {/* <div>
+                  <h4 className="font-semibold mb-2">Funds Raised Over Time</h4>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={analyticsData.fundsHistory}>
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="funds" stroke="#3b82f6" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div> */}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
       {/* Recent Activity */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
           <CardDescription>Latest updates from your projects</CardDescription>
@@ -675,7 +877,7 @@ export function NGODashboard() {
             </div>
           ))}
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Modal for View/Edit */}
       <Dialog open={modalOpen} onOpenChange={handleCloseModal}>
